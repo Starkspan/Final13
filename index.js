@@ -2,14 +2,14 @@ import express from "express";
 import multer from "multer";
 import cors from "cors";
 import fs from "fs";
-import sharp from "sharp";
-import vision from "@google-cloud/vision";
-import { PDFDocument } from "pdf-lib";
 import path from "path";
+import vision from "@google-cloud/vision";
+import { execSync } from "child_process";
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
 const client = new vision.ImageAnnotatorClient();
+
 app.use(cors());
 app.use(express.json());
 
@@ -22,22 +22,20 @@ function extractMaterial(text) {
   return { nummer: "Unbekannt", bezeichnung: "Nicht erkannt" };
 }
 
-async function convertPdfToPng(pdfPath, outputPath) {
-  const pdfBytes = fs.readFileSync(pdfPath);
-  const pdfDoc = await PDFDocument.load(pdfBytes);
-  const page = pdfDoc.getPage(0);
-  const pngBuffer = await sharp(Buffer.from(await page.embedPng())).png().toBuffer();
-  fs.writeFileSync(outputPath, pngBuffer);
+async function convertPdfToPng(pdfPath, outputPathWithoutExt) {
+  const command = `pdftoppm "${pdfPath}" "${outputPathWithoutExt}" -png -rx 300 -ry 300`;
+  execSync(command);
 }
 
 app.post("/analyze", upload.single("file"), async (req, res) => {
   try {
     const pdfPath = req.file.path;
-    const imagePath = pdfPath + ".png";
+    const outputBase = pdfPath + "_out";
+    const pngPath = outputBase + "-1.png";
 
-    await convertPdfToPng(pdfPath, imagePath);
+    convertPdfToPng(pdfPath, outputBase);
 
-    const [result] = await client.textDetection(imagePath);
+    const [result] = await client.textDetection(pngPath);
     const detections = result.textAnnotations;
     const text = detections.length > 0 ? detections[0].description : "";
 
@@ -52,12 +50,12 @@ app.post("/analyze", upload.single("file"), async (req, res) => {
     });
 
     fs.unlinkSync(pdfPath);
-    fs.unlinkSync(imagePath);
+    fs.unlinkSync(pngPath);
   } catch (err) {
     console.error("Fehler bei Analyse:", err);
     res.status(500).json({ error: "Analyse fehlgeschlagen." });
   }
 });
 
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`Server läuft auf Port ${PORT}`));
+const PORT = process.env.PORT || 10000;
+app.listen(PORT, () => console.log(`✅ Server läuft auf Port ${PORT}`));

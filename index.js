@@ -4,7 +4,9 @@ import cors from "cors";
 import fs from "fs";
 import path from "path";
 import vision from "@google-cloud/vision";
-import { execSync } from "child_process";
+import { PDFDocument } from "pdf-lib";
+import sharp from "sharp";
+import { convert } from "pdf-img-convert";
 
 const app = express();
 const upload = multer({ dest: "uploads/" });
@@ -22,20 +24,19 @@ function extractMaterial(text) {
   return { nummer: "Unbekannt", bezeichnung: "Nicht erkannt" };
 }
 
-async function convertPdfToPng(pdfPath, outputPathWithoutExt) {
-  const command = `pdftoppm "${pdfPath}" "${outputPathWithoutExt}" -png -rx 300 -ry 300`;
-  execSync(command);
+async function convertPdfToPng(pdfPath, pngPath) {
+  const outputImages = await convert(pdfPath, { width: 1500 });
+  fs.writeFileSync(pngPath, outputImages[0]);
 }
 
 app.post("/analyze", upload.single("file"), async (req, res) => {
   try {
     const pdfPath = req.file.path;
-    const outputBase = pdfPath + "_out";
-    const pngPath = outputBase + "-1.png";
+    const imagePath = pdfPath + ".png";
 
-    convertPdfToPng(pdfPath, outputBase);
+    await convertPdfToPng(pdfPath, imagePath);
 
-    const [result] = await client.textDetection(pngPath);
+    const [result] = await client.textDetection(imagePath);
     const detections = result.textAnnotations;
     const text = detections.length > 0 ? detections[0].description : "";
 
@@ -50,7 +51,7 @@ app.post("/analyze", upload.single("file"), async (req, res) => {
     });
 
     fs.unlinkSync(pdfPath);
-    fs.unlinkSync(pngPath);
+    fs.unlinkSync(imagePath);
   } catch (err) {
     console.error("Fehler bei Analyse:", err);
     res.status(500).json({ error: "Analyse fehlgeschlagen." });

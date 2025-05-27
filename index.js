@@ -1,21 +1,39 @@
+
 const express = require("express");
 const fileUpload = require("express-fileupload");
+const cors = require("cors");
 const app = express();
 const PORT = 10000;
 
+app.use(cors());
 app.use(fileUpload());
 app.use(express.json());
 
 app.post("/analyze", (req, res) => {
   const { material, length, width, height, quantity } = req.body;
-  const weight = Number(length) * Number(width) * (Number(height) || 1) * 0.00000785;
-  const cnc = (weight * 35).toFixed(2);
-  const matCost = (weight * 1.5).toFixed(2);
-  const price = (Number(cnc) + Number(matCost)).toFixed(2);
-  const total = (price * Number(quantity)).toFixed(2);
-  res.json({ material, weight: weight.toFixed(5), matCost, cnc, pricePerPiece: price, quantity, total });
+  const l = parseFloat(length);
+  const w = parseFloat(width);
+  const h = parseFloat(height || width);
+  const qty = parseInt(quantity || "1");
+
+  const rohvolumen = (l * w * h) / 1_000_000;
+  const rohgewicht = rohvolumen * 7.85;
+  const matkosten = rohgewicht * 1.5;
+  const cnc = rohgewicht * 35;
+  const einzelpreis = (matkosten + cnc + 60 + 30) * 1.15;
+  const gesamt = einzelpreis * qty;
+
+  res.json({
+    material,
+    rohgewicht_kg: rohgewicht.toFixed(5),
+    materialkosten: matkosten.toFixed(2),
+    cnc_kosten: cnc.toFixed(2),
+    einzelpreis: einzelpreis.toFixed(2),
+    stückzahl: qty,
+    gesamtpreis: gesamt.toFixed(2)
+  });
 });
 
 app.listen(PORT, () => {
-  console.log("✅ Backend läuft auf Port", PORT);
+  console.log("✅ Backend läuft auf Port " + PORT);
 });

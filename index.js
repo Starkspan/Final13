@@ -67,7 +67,7 @@ app.post('/analyze', upload.single('file'), async (req, res) => {
         const euroPerKg = pricePerKg[selectedMaterial] || 2.0;
 
         const volume_cm3 = length * width * height; // mm³
-        const weight = (volume_cm3 / 1000) * density; // in g → /1000 → kg
+        const calculatedWeight = (volume_cm3 / 1000) * density; // in g → /1000 → kg
         const materialCost = weight * eurokg;
 
         // CNC-Kalkulation
@@ -80,7 +80,7 @@ app.post('/analyze', upload.single('file'), async (req, res) => {
 
         return res.json({
             material: selectedMaterial,
-            rohgewicht_kg: weight.toFixed(2),
+            rohgewicht_kg: calculatedWeight.toFixed(2),
             materialkosten: materialCost.toFixed(2),
             cnc_kosten: cncKosten.toFixed(2),
             gesamtpreis: preisBrutto.toFixed(2),

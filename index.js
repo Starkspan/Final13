@@ -15,7 +15,9 @@ const API_KEY = "K81799995088957"; // OCR.space API-Key
 
 app.post('/analyze', upload.single('file'), async (req, res) => {
     try {
-        const filePath = req.file.path;
+        console.log('DEBUG req.body:', req.body);
+console.log('DEBUG req.file:', req.file);
+const filePath = req.file.path;
 
         const formData = new FormData();
         formData.append('file', fs.createReadStream(filePath));
@@ -88,7 +90,7 @@ app.post('/analyze', upload.single('file'), async (req, res) => {
             erkannterText: parsedText
         });
 
-        const weight = weightMatch ? parseFloat(weightMatch[1].replace(",", ".")) : 0.1;
+        const extractedWeight = weightMatch ? parseFloat(extractedWeightMatch.replace(",", ".")) : 0.1;
         const drawingNumber = numberMatch ? numberMatch[1] : "Unbekannt";
 
         const baseCost = 60 + 30 + (weight * 35); // Rüst + Programmierung + Fertigung

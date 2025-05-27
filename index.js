@@ -97,7 +97,7 @@ const calculatedWeight = (volume_cm3 * density) / 1000;
 
         return res.json({
             material: selectedMaterial,
-            rohgewicht_kg: calculatedWeight.toFixed(2),
+            rohgewicht_kg: Number(calculatedWeight.toFixed(5)),
             materialkosten: materialCost.toFixed(2),
             cnc_kosten: cncKosten.toFixed(2),
             gesamtpreis: preisBrutto.toFixed(2),
@@ -119,7 +119,7 @@ const calculatedWeight = (volume_cm3 * density) / 1000;
         res.json({
             zeichnungsnummer: drawingNumber,
             material,
-            gewicht: calculatedWeight + " kg",
+            gewicht: Number(calculatedWeight.toFixed(5)) + " kg",
             staffelpreise: prices
         });
     } catch (err) {

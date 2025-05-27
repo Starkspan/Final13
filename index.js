@@ -8,6 +8,7 @@ const path = require('path');
 const app = express();
 const upload = multer({ dest: 'uploads/' });
 app.use(cors());
+app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 const API_KEY = "K81799995088957"; // OCR.space API-Key

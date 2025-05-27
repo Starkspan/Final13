@@ -73,27 +73,18 @@ const filePath = req.file.path;
 
         
         
-        // Eingaben umwandeln in cm
-        const length_cm = length / 10;
-        const diameter_cm = width / 10;
-        const height_cm = height / 10;
+        
+// Umrechnung in cm
+const length_cm = length / 10;
+const diameter_cm = width / 10;
+const radius_cm = diameter_cm / 2;
 
-        let volume_cm3 = Math.PI * Math.pow(radius_cm, 2) * length_cm;
-        if (height && height > 0) {
-            volume_cm3 = Math.PI * Math.pow(radius_cm, 2) * length_cm;
-        } else {
-            // Zylinder: π * r² * l (in cm³)
-            const radius_cm = diameter_cm / 2;
-            volume_cm3 = Math.PI * Math.pow(radius_cm, 2) * length_cm;
-        }
+// Volumen in cm³
+const volume_cm3 = Math.PI * Math.pow(radius_cm, 2) * length_cm;
 
-        } else {
-            // Zylinderformel bei fehlender Höhe: V = π * r² * h
-            const radius = width / 2;
-            volume_cm3 = Math.PI * Math.pow(radius_cm, 2) * length_cm;
-        }
-     // mm³
-        const calculatedWeight = (volume_cm3 * density) / 1000; // in g → /1000 → kg
+// Gewicht in kg
+const calculatedWeight = (volume_cm3 * density) / 1000;
+ // in g → /1000 → kg
         const materialCost = calculatedWeight * euroPerKg;
 
         // CNC-Kalkulation

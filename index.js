@@ -71,7 +71,7 @@ const filePath = req.file.path;
 
         const volume_cm3 = length * width * height; // mm³
         const calculatedWeight = (volume_cm3 / 1000) * density; // in g → /1000 → kg
-        const materialCost = calculatedWeight * eurokg;
+        const materialCost = calculatedWeight * euroPerKg;
 
         // CNC-Kalkulation
         const rüst = 60;

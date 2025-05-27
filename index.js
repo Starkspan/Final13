@@ -70,16 +70,28 @@ const filePath = req.file.path;
         const euroPerKg = pricePerKg[selectedMaterial] || 2.0;
 
         
+        
+        // Eingaben umwandeln in cm
+        const length_cm = length / 10;
+        const width_cm = width / 10;
+        const height_cm = height / 10;
+
         let volume_cm3 = 0;
         if (height && height > 0) {
-            volume_cm3 = length * width * height;
+            volume_cm3 = length_cm * width_cm * height_cm;
+        } else {
+            // Zylinder: π * r² * l (in cm³)
+            const radius_cm = width_cm / 2;
+            volume_cm3 = Math.PI * Math.pow(radius_cm, 2) * length_cm;
+        }
+
         } else {
             // Zylinderformel bei fehlender Höhe: V = π * r² * h
             const radius = width / 2;
             volume_cm3 = Math.PI * Math.pow(radius, 2) * length;
         }
      // mm³
-        const calculatedWeight = (volume_cm3 / 1000) * density; // in g → /1000 → kg
+        const calculatedWeight = (volume_cm3 * density) / 1000; // in g → /1000 → kg
         const materialCost = calculatedWeight * euroPerKg;
 
         // CNC-Kalkulation

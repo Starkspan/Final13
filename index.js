@@ -69,7 +69,16 @@ const filePath = req.file.path;
         const density = materialDensity[selectedMaterial] || 7.85;
         const euroPerKg = pricePerKg[selectedMaterial] || 2.0;
 
-        const volume_cm3 = length * width * height; // mm³
+        
+        let volume_cm3 = 0;
+        if (height && height > 0) {
+            volume_cm3 = length * width * height;
+        } else {
+            // Zylinderformel bei fehlender Höhe: V = π * r² * h
+            const radius = width / 2;
+            volume_cm3 = Math.PI * Math.pow(radius, 2) * length;
+        }
+     // mm³
         const calculatedWeight = (volume_cm3 / 1000) * density; // in g → /1000 → kg
         const materialCost = calculatedWeight * euroPerKg;
 

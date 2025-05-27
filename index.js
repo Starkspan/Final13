@@ -71,7 +71,7 @@ const filePath = req.file.path;
 
         const volume_cm3 = length * width * height; // mm³
         const calculatedWeight = (volume_cm3 / 1000) * density; // in g → /1000 → kg
-        const materialCost = weight * eurokg;
+        const materialCost = calculatedWeight * eurokg;
 
         // CNC-Kalkulation
         const rüst = 60;
@@ -93,7 +93,7 @@ const filePath = req.file.path;
         const extractedWeight = weightMatch ? parseFloat(extractedWeightMatch.replace(",", ".")) : 0.1;
         const drawingNumber = numberMatch ? numberMatch[1] : "Unbekannt";
 
-        const baseCost = 60 + 30 + (weight * 35); // Rüst + Programmierung + Fertigung
+        const baseCost = 60 + 30 + (calculatedWeight * 35); // Rüst + Programmierung + Fertigung
         const margin = 1.15;
         const finalPrice = baseCost * margin;
 
@@ -105,7 +105,7 @@ const filePath = req.file.path;
         res.json({
             zeichnungsnummer: drawingNumber,
             material,
-            gewicht: weight + " kg",
+            gewicht: calculatedWeight + " kg",
             staffelpreise: prices
         });
     } catch (err) {

@@ -4,7 +4,7 @@ const fileUpload = require("express-fileupload");
 const vision = require("@google-cloud/vision");
 const fs = require("fs");
 const path = require("path");
-const { fromPath } = require("pdf2pic");
+const { PDFImage } = require("pdf-image");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -27,47 +27,46 @@ app.post("/analyze", async (req, res) => {
   const tempPath = path.join(__dirname, "temp.pdf");
   await pdf.mv(tempPath);
 
-  const outputPath = path.join(__dirname, "out");
-  const converter = fromPath(tempPath, {
-    density: 300,
-    saveFilename: "preview",
-    savePath: outputPath,
-    format: "png",
-    width: 1654,
-    height: 2339
+  const pdfImage = new PDFImage(tempPath, {
+    convertOptions: {
+      "-density": "300",
+      "-quality": "100"
+    }
   });
 
-  const page1 = await converter(1);
-  const imageBuffer = fs.readFileSync(page1.path);
+  try {
+    const imagePath = await pdfImage.convertPage(0);
+    const [result] = await client.textDetection(imagePath);
+    const detections = result.textAnnotations;
+    const fullText = detections.length ? detections[0].description : "";
 
-  const [result] = await client.textDetection(imageBuffer);
-  const detections = result.textAnnotations;
-  const fullText = detections.length ? detections[0].description : "";
+    const text = fullText.toLowerCase();
+    const analysis = {
+      bohrungen: (text.match(/ø|⌀|loch|durchmesser/g) || []).length,
+      gewinde: (text.match(/m[0-9]/g) || []).length,
+      toleranzen: (text.match(/±|toleranz|it[0-9]/g) || []).length,
+      passungen: (text.match(/h[0-9]|js[0-9]/g) || []).length,
+      nuten: (text.match(/nut|nuten/g) || []).length,
+      oberflächen: (text.match(/ra|r[0-9]|μm|µm/g) || []).length
+    };
 
-  // Beispielhafte Analyse
-  const text = fullText.toLowerCase();
-  const analysis = {
-    bohrungen: (text.match(/ø|⌀|loch|durchmesser/g) || []).length,
-    gewinde: (text.match(/m[0-9]/g) || []).length,
-    toleranzen: (text.match(/±|toleranz|it[0-9]/g) || []).length,
-    passungen: (text.match(/h[0-9]|js[0-9]/g) || []).length,
-    nuten: (text.match(/nut|nuten/g) || []).length,
-    oberflächen: (text.match(/ra|r[0-9]|μm|µm/g) || []).length
-  };
+    const gesamtminuten =
+      analysis.bohrungen * 2 +
+      analysis.gewinde * 3 +
+      analysis.toleranzen * 2 +
+      analysis.passungen * 1.5 +
+      analysis.nuten * 3 +
+      analysis.oberflächen * 4;
 
-  const gesamtminuten =
-    analysis.bohrungen * 2 +
-    analysis.gewinde * 3 +
-    analysis.toleranzen * 2 +
-    analysis.passungen * 1.5 +
-    analysis.nuten * 3 +
-    analysis.oberflächen * 4;
-
-  res.json({
-    ocrText: fullText,
-    bearbeitungszeit_min: Math.round(gesamtminuten),
-    merkmale: analysis
-  });
+    res.json({
+      ocrText: fullText,
+      bearbeitungszeit_min: Math.round(gesamtminuten),
+      merkmale: analysis
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("OCR processing failed.");
+  }
 });
 
 app.listen(port, () => {

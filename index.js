@@ -1,79 +1,75 @@
 
 const express = require("express");
 const fileUpload = require("express-fileupload");
-const cors = require("cors");
+const vision = require("@google-cloud/vision");
+const fs = require("fs");
+const path = require("path");
+const { fromPath } = require("pdf2pic");
 
 const app = express();
-app.use(cors());
+const port = process.env.PORT || 3000;
+
+// Middleware
 app.use(fileUpload());
+app.use(express.json());
 
-function berechneGewicht(material, durchmesser_mm, länge_mm) {
-    const dichteTabelle = {
-        "Stahl": 7.85,
-        "Aluminium": 2.70,
-        "Edelstahl": 8.00,
-        "Messing": 8.40,
-        "Kupfer": 8.96
-    };
-    const dichte = dichteTabelle[material] || 7.85;
-    const radius_cm = (durchmesser_mm / 10) / 2;
-    const länge_cm = länge_mm / 10;
-    const volumen_cm3 = Math.PI * Math.pow(radius_cm, 2) * länge_cm;
-    const gewicht_gramm = volumen_cm3 * dichte;
-    return +(gewicht_gramm / 1000).toFixed(5);
-}
-
-function berechneBearbeitungszeit(ocrtext) {
-    const text = ocrtext || "";
-    const bohrungen = (text.match(/[Ø⌀]\s?\d+/gi) || []).length;
-    const gewinde = (text.match(/M\d+/gi) || []).length;
-    const toleranzen = (text.match(/[±]\s?\d+[.,]?\d*/g) || []).length;
-    const passungen = (text.match(/H7|H8|H9/gi) || []).length;
-    const nuten = (text.match(/Nut|Tasche|Schlitz/gi) || []).length;
-    const oberflächen = (text.match(/Rz|Ra|3\.2|6\.3/gi) || []).length;
-
-    const minuten = bohrungen + 2 * gewinde + 2 * toleranzen + 2 * passungen + 4 * nuten + 2 * oberflächen;
-    const laufzeit_h = +(minuten / 60).toFixed(2);
-    const cnc_kosten = +(laufzeit_h * 35).toFixed(2);
-
-    return {
-        minuten,
-        laufzeit_h,
-        cnc_kosten,
-        merkmale: { bohrungen, gewinde, toleranzen, passungen, nuten, oberflächen }
-    };
-}
-
-app.post("/analyze", (req, res) => {
-    const { material, length, width, height, quantity, ocrtext } = req.body;
-
-    const d = parseFloat(width || 0);
-    const l = parseFloat(length || 0);
-    const q = parseInt(quantity || 1);
-    const rohgewicht = berechneGewicht(material, d, l);
-    const materialkosten = +(rohgewicht * (material === "Aluminium" ? 7 : material === "Edelstahl" ? 6.5 : 1.5)).toFixed(2);
-
-    const analyse = berechneBearbeitungszeit(ocrtext || "");
-    const rüstkosten = 60;
-    const programmierkosten = 30;
-    const cnc_kosten = analyse.cnc_kosten;
-
-    const einzelpreis = +(rüstkosten + programmierkosten + (rohgewicht * 35) + cnc_kosten + materialkosten).toFixed(2);
-    const gesamtpreis = +(einzelpreis * q).toFixed(2);
-
-    res.json({
-        material,
-        rohgewicht_kg: rohgewicht,
-        materialkosten,
-        cnc_kosten,
-        einzelpreis,
-        stückzahl: q,
-        gesamtpreis,
-        bearbeitung_laufzeit_min: analyse.minuten,
-        bearbeitungsmerkmale: analyse.merkmale
-    });
+// Google Vision Client
+const client = new vision.ImageAnnotatorClient({
+  keyFilename: "starkspan-ocr-45e31c6a347b.json"
 });
 
-app.listen(10000, () => {
-    console.log("Server läuft auf Port 10000 mit OCR-Bearbeitungsanalyse");
+app.post("/analyze", async (req, res) => {
+  if (!req.files || !req.files.pdf) {
+    return res.status(400).send("No file uploaded.");
+  }
+
+  const pdf = req.files.pdf;
+  const tempPath = path.join(__dirname, "temp.pdf");
+  await pdf.mv(tempPath);
+
+  const outputPath = path.join(__dirname, "out");
+  const converter = fromPath(tempPath, {
+    density: 300,
+    saveFilename: "preview",
+    savePath: outputPath,
+    format: "png",
+    width: 1654,
+    height: 2339
+  });
+
+  const page1 = await converter(1);
+  const imageBuffer = fs.readFileSync(page1.path);
+
+  const [result] = await client.textDetection(imageBuffer);
+  const detections = result.textAnnotations;
+  const fullText = detections.length ? detections[0].description : "";
+
+  // Beispielhafte Analyse
+  const text = fullText.toLowerCase();
+  const analysis = {
+    bohrungen: (text.match(/ø|⌀|loch|durchmesser/g) || []).length,
+    gewinde: (text.match(/m[0-9]/g) || []).length,
+    toleranzen: (text.match(/±|toleranz|it[0-9]/g) || []).length,
+    passungen: (text.match(/h[0-9]|js[0-9]/g) || []).length,
+    nuten: (text.match(/nut|nuten/g) || []).length,
+    oberflächen: (text.match(/ra|r[0-9]|μm|µm/g) || []).length
+  };
+
+  const gesamtminuten =
+    analysis.bohrungen * 2 +
+    analysis.gewinde * 3 +
+    analysis.toleranzen * 2 +
+    analysis.passungen * 1.5 +
+    analysis.nuten * 3 +
+    analysis.oberflächen * 4;
+
+  res.json({
+    ocrText: fullText,
+    bearbeitungszeit_min: Math.round(gesamtminuten),
+    merkmale: analysis
+  });
+});
+
+app.listen(port, () => {
+  console.log(`OCR Backend läuft auf Port ${port}`);
 });

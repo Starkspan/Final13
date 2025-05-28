@@ -1,11 +1,11 @@
 
 const express = require("express");
-const multer = require("multer");
+const fileUpload = require("express-fileupload");
 const cors = require("cors");
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
 app.use(cors());
+app.use(fileUpload());
 
 function berechneGewicht(material, durchmesser_mm, länge_mm) {
     const dichteTabelle = {
@@ -27,9 +27,8 @@ function berechneGewicht(material, durchmesser_mm, länge_mm) {
     return gewicht_kg;
 }
 
-app.post("/analyze", upload.single("pdf"), (req, res) => {
+app.post("/analyze", (req, res) => {
     const { material, length, width, height, quantity } = req.body;
-
     const d = parseFloat(width || 0);
     const l = parseFloat(length || 0);
     const q = parseInt(quantity || 1);
@@ -52,5 +51,5 @@ app.post("/analyze", upload.single("pdf"), (req, res) => {
 });
 
 app.listen(10000, () => {
-    console.log("Server läuft auf Port 10000");
+    console.log("Server läuft auf Port 10000 mit express-fileupload");
 });

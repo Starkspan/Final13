@@ -9,6 +9,6 @@
     "@google-cloud/vision": "2.4.1",
     "express": "^4.18.2",
     "express-fileupload": "^1.4.0",
-    "pdf-image": "^3.0.0"
+    "pdf-image": "^2.0.0"
   }
 }
